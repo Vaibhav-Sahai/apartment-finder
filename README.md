@@ -1,13 +1,15 @@
 # Apartment Finder
 
-A Python bot that scrapes rental websites and sends notifications via WhatsApp. Supports scheduled daily updates and on-demand scraping via WhatsApp commands.
+![Apartment Finder](images/cover.png)
+
+A Python bot that scrapes rental websites and sends notifications via Telegram. Supports scheduled daily updates and on-demand scraping via Telegram commands.
 
 ## Features
 
 - **Multi-site scraping** - Configure multiple rental websites with custom CSS selectors
 - **Two scraper types** - Static HTML (httpx + BeautifulSoup) and Playwright (for JS-heavy sites)
 - **Interactive site support** - Click through elements (e.g., floor selectors) to reveal hidden content
-- **WhatsApp integration** - Daily notifications + on-demand commands
+- **Telegram integration** - Daily notifications + on-demand commands
 - **Smart tracking** - SQLite database deduplicates listings and removes stale ones (taken units)
 
 ## How It Works
@@ -19,7 +21,7 @@ A Python bot that scrapes rental websites and sends notifications via WhatsApp. 
 └─────────────────┘     └──────────────┘     └─────────────┘
                                                     │
 ┌─────────────────┐     ┌──────────────┐            ▼
-│  User Phone     │◀───▶│   FastAPI    │◀────  New Listings
+│  Telegram Bot   │◀───▶│   FastAPI    │◀────  New Listings
 │  (commands)     │     │   Webhook    │
 └─────────────────┘     └──────────────┘
 ```
@@ -51,7 +53,7 @@ Listings not found on subsequent scrapes are automatically removed (unit taken).
 
 - Python 3.14+
 - [uv](https://docs.astral.sh/uv/) package manager
-- Meta Business Account with WhatsApp API access
+- Telegram account
 
 ### Installation
 
@@ -62,14 +64,28 @@ uv sync
 uv run playwright install chromium
 ```
 
+### Telegram Bot Setup
+
+1. **Create a bot**: Message [@BotFather](https://t.me/BotFather) on Telegram
+   - Send `/newbot` and follow the prompts
+   - Save the bot token (looks like `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11`)
+
+2. **Get your chat ID**:
+   - Message your new bot (send any message)
+   - Visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+   - Find `"chat":{"id":123456789}` in the response
+
+3. **Set webhook** (after deploying your server):
+   ```bash
+   curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://your-server.com/webhook"
+   ```
+
 ### Configuration
 
 **Environment variables** (`.env`):
 ```env
-WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
-WHATSAPP_ACCESS_TOKEN=your_access_token
-WHATSAPP_VERIFY_TOKEN=your_custom_verify_token
-RECIPIENT_PHONE=14155238886
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+TELEGRAM_CHAT_ID=123456789
 DAILY_SCRAPE_TIME=09:00
 DB_PATH=listings.db
 ```
@@ -95,14 +111,13 @@ sites:
       wait_after: 2000           # ms to wait after each click
 ```
 
-### WhatsApp Webhook Setup
+### Webhook Setup
 
+For local development with Tailscale:
 ```bash
 tailscale funnel 8000
-# Configure in Meta Developer Portal:
-# - URL: https://your-machine.tail1234.ts.net/webhook
-# - Verify Token: same as WHATSAPP_VERIFY_TOKEN
-# - Subscribe to: messages
+# Then set webhook:
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-machine.tail1234.ts.net/webhook"
 ```
 
 ### Running
@@ -111,7 +126,7 @@ tailscale funnel 8000
 uv run python -m src.server
 ```
 
-## WhatsApp Commands
+## Telegram Commands
 
 | Command | Description |
 |---------|-------------|
@@ -125,7 +140,7 @@ uv run python -m src.server
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/webhook` | GET/POST | WhatsApp webhook |
+| `/webhook` | POST | Telegram webhook |
 | `/health` | GET | Health check |
 | `/scrape` | POST | Manual scrape trigger |
 
@@ -143,9 +158,9 @@ src/
 │   ├── listing.py         # Listing dataclass
 │   └── database.py        # SQLite operations
 ├── messaging/
-│   ├── whatsapp.py        # Meta Business API client
+│   ├── telegram.py        # Telegram Bot API client
 │   └── formatter.py       # Message formatting
-└── handlers/webhook.py    # WhatsApp command routing
+└── handlers/webhook.py    # Telegram command routing
 ```
 
 ## License

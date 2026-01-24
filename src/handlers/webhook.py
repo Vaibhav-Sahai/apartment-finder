@@ -1,4 +1,4 @@
-"""Handle incoming WhatsApp webhook messages."""
+"""Handle incoming Telegram webhook messages."""
 
 import logging
 from typing import Callable, Awaitable
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class WebhookHandler:
-    """Handle incoming WhatsApp messages and route to commands."""
+    """Handle incoming Telegram messages and route to commands."""
 
     HELP_TEXT = """*Available Commands:*
 
@@ -72,39 +72,27 @@ class WebhookHandler:
 
     @staticmethod
     def extract_message_from_webhook(payload: dict) -> tuple[str, str] | None:
-        """Extract message text and sender from webhook payload.
+        """Extract message text and chat ID from Telegram webhook payload.
 
         Args:
-            payload: The webhook payload from Meta
+            payload: The webhook payload from Telegram
 
         Returns:
-            Tuple of (sender_phone, message_text) or None if not a message
+            Tuple of (chat_id, message_text) or None if not a message
         """
         try:
-            entry = payload.get("entry", [])
-            if not entry:
+            message = payload.get("message")
+            if not message:
                 return None
 
-            changes = entry[0].get("changes", [])
-            if not changes:
-                return None
+            chat = message.get("chat", {})
+            chat_id = chat.get("id")
+            text = message.get("text", "")
 
-            value = changes[0].get("value", {})
-            messages = value.get("messages", [])
-            if not messages:
-                return None
+            if chat_id and text:
+                return (str(chat_id), text)
 
-            message = messages[0]
-            if message.get("type") != "text":
-                return None
-
-            sender = message.get("from")
-            text = message.get("text", {}).get("body", "")
-
-            if sender and text:
-                return (sender, text)
-
-        except (KeyError, IndexError) as e:
+        except (KeyError, TypeError) as e:
             logger.error(f"Error parsing webhook payload: {e}")
 
         return None

@@ -1,4 +1,4 @@
-"""Main server - orchestrates scraping, scheduling, and WhatsApp integration."""
+"""Main server - orchestrates scraping, scheduling, and Telegram integration."""
 
 import asyncio
 import logging
@@ -7,7 +7,7 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 
 from src.config.settings import Settings, SiteConfig
 from src.models.database import Database
@@ -15,7 +15,7 @@ from src.models.listing import Listing
 from src.scrapers.base import BaseScraper
 from src.scrapers.playwright_scraper import PlaywrightScraper
 from src.scrapers.static_scraper import StaticScraper
-from src.messaging.whatsapp import WhatsAppClient
+from src.messaging.telegram import TelegramClient
 from src.messaging.formatter import format_listings, format_status
 from src.handlers.webhook import WebhookHandler
 
@@ -32,10 +32,7 @@ class ApartmentFinderServer:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings.load()
         self.db = Database(self.settings.db_path)
-        self.whatsapp = WhatsAppClient(
-            self.settings.whatsapp_phone_number_id,
-            self.settings.whatsapp_access_token,
-        )
+        self.telegram = TelegramClient(self.settings.telegram_bot_token)
         self.scheduler = AsyncIOScheduler()
         self.webhook_handler: WebhookHandler | None = None
         self._last_scrape: datetime | None = None
@@ -84,24 +81,24 @@ class ApartmentFinderServer:
         return all_new_listings
 
     async def scrape_and_notify(self):
-        """Scrape all sites and send WhatsApp notification for new listings."""
+        """Scrape all sites and send Telegram notification for new listings."""
         logger.info("Starting scheduled scrape...")
         new_listings = await self.scrape_all()
 
         if new_listings:
             message = format_listings(new_listings)
-            await self.whatsapp.send_message(self.settings.recipient_phone, message)
+            await self.telegram.send_message(self.settings.telegram_chat_id, message)
             logger.info(f"Sent notification for {len(new_listings)} new listings")
         else:
             logger.info("No new listings found")
 
     async def _handle_scrape_all(self) -> str:
-        """Handle 'scrape' command from WhatsApp."""
+        """Handle 'scrape' command from Telegram."""
         new_listings = await self.scrape_all()
         return format_listings(new_listings)
 
     async def _handle_scrape_site(self, site_name: str) -> str:
-        """Handle 'scrape <site>' command from WhatsApp."""
+        """Handle 'scrape <site>' command from Telegram."""
         site = self.settings.get_site(site_name)
         if not site:
             available = ", ".join(s.name for s in self.settings.sites)
@@ -115,7 +112,7 @@ class ApartmentFinderServer:
             return f"Error scraping {site_name}: {str(e)}"
 
     async def _handle_status(self) -> str:
-        """Handle 'status' command from WhatsApp."""
+        """Handle 'status' command from Telegram."""
         listing_count = await self.db.get_listing_count()
         last_scrape = self._last_scrape.isoformat() if self._last_scrape else "Never"
         return format_status(
@@ -158,7 +155,7 @@ class ApartmentFinderServer:
         """Clean up server components."""
         self.scheduler.shutdown(wait=False)
         await self.db.close()
-        await self.whatsapp.close()
+        await self.telegram.close()
 
 
 # Global server instance
@@ -178,38 +175,22 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Apartment Finder", lifespan=lifespan)
 
 
-@app.get("/webhook")
-async def verify_webhook(request: Request):
-    """Handle webhook verification from Meta."""
-    params = request.query_params
-    mode = params.get("hub.mode")
-    token = params.get("hub.verify_token")
-    challenge = params.get("hub.challenge")
-
-    if mode == "subscribe" and token == server.settings.whatsapp_verify_token:
-        logger.info("Webhook verified")
-        return Response(content=challenge, media_type="text/plain")
-
-    logger.warning("Webhook verification failed")
-    return Response(status_code=403)
-
-
 @app.post("/webhook")
 async def handle_webhook(request: Request):
-    """Handle incoming webhook messages from WhatsApp."""
+    """Handle incoming webhook messages from Telegram."""
     payload = await request.json()
 
     # Extract message from payload
     result = WebhookHandler.extract_message_from_webhook(payload)
     if result:
-        sender, text = result
-        logger.info(f"Received message from {sender}: {text}")
+        chat_id, text = result
+        logger.info(f"Received message from {chat_id}: {text}")
 
         # Handle the message
         response = await server.webhook_handler.handle_message(text)
 
         # Send response back
-        await server.whatsapp.send_message(sender, response)
+        await server.telegram.send_message(chat_id, response)
 
     return {"status": "ok"}
 

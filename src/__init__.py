@@ -1,1 +1,1 @@
-"""Apartment Finder - Scrape rental websites and get WhatsApp notifications."""
+"""Apartment Finder - Scrape rental websites and get Telegram notifications."""

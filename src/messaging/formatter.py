@@ -1,10 +1,10 @@
-"""Format listings for WhatsApp messages."""
+"""Format listings for Telegram messages."""
 
 from src.models.listing import Listing
 
 
 def format_listing(listing: Listing) -> str:
-    """Format a single listing for WhatsApp.
+    """Format a single listing for Telegram.
 
     Args:
         listing: The listing to format
@@ -37,7 +37,7 @@ def format_listing(listing: Listing) -> str:
 
 
 def format_listings(listings: list[Listing], site_name: str | None = None) -> str:
-    """Format multiple listings for WhatsApp.
+    """Format multiple listings for Telegram.
 
     Args:
         listings: List of listings to format

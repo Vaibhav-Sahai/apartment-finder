@@ -1,7 +1,7 @@
 [project]
 name = "apartment-finder"
 version = "0.1.0"
-description = "Scrape rental websites and get WhatsApp notifications for new listings"
+description = "Scrape rental websites and get Telegram notifications for new listings"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [

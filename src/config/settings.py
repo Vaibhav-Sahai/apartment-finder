@@ -55,11 +55,9 @@ class SiteConfig:
 class Settings:
     """Application settings loaded from environment and config files."""
 
-    # WhatsApp Meta Business API
-    whatsapp_phone_number_id: str
-    whatsapp_access_token: str
-    whatsapp_verify_token: str
-    recipient_phone: str
+    # Telegram Bot API
+    telegram_bot_token: str
+    telegram_chat_id: str
 
     # Schedule
     daily_scrape_time: str  # HH:MM format
@@ -93,10 +91,8 @@ class Settings:
                     sites = [SiteConfig.from_dict(s) for s in sites_data["sites"]]
 
         return cls(
-            whatsapp_phone_number_id=os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""),
-            whatsapp_access_token=os.getenv("WHATSAPP_ACCESS_TOKEN", ""),
-            whatsapp_verify_token=os.getenv("WHATSAPP_VERIFY_TOKEN", ""),
-            recipient_phone=os.getenv("RECIPIENT_PHONE", ""),
+            telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
+            telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
             daily_scrape_time=os.getenv("DAILY_SCRAPE_TIME", "09:00"),
             db_path=os.getenv("DB_PATH", "listings.db"),
             host=os.getenv("HOST", "0.0.0.0"),
@@ -115,14 +111,10 @@ class Settings:
     def validate(self) -> list[str]:
         """Validate settings and return list of errors."""
         errors = []
-        if not self.whatsapp_phone_number_id:
-            errors.append("WHATSAPP_PHONE_NUMBER_ID is required")
-        if not self.whatsapp_access_token:
-            errors.append("WHATSAPP_ACCESS_TOKEN is required")
-        if not self.whatsapp_verify_token:
-            errors.append("WHATSAPP_VERIFY_TOKEN is required")
-        if not self.recipient_phone:
-            errors.append("RECIPIENT_PHONE is required")
+        if not self.telegram_bot_token:
+            errors.append("TELEGRAM_BOT_TOKEN is required")
+        if not self.telegram_chat_id:
+            errors.append("TELEGRAM_CHAT_ID is required")
         if not self.sites:
             errors.append("No sites configured in sites.yaml")
         return errors
