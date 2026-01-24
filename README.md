@@ -10,6 +10,33 @@ A Python bot that scrapes rental websites and sends notifications via WhatsApp. 
 - **Duplicate detection** - SQLite database tracks seen listings to avoid repeat notifications
 - **Flexible scheduling** - Configure daily scrape time via environment variable
 
+## How It Works
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+│  APScheduler    │────▶│   Scrapers   │────▶│  Database   │
+│  (daily cron)   │     │              │     │  (SQLite)   │
+└─────────────────┘     └──────────────┘     └─────────────┘
+                                                    │
+                                                    ▼
+┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+│  WhatsApp       │◀────│  Formatter   │◀────│ New Listings│
+│  (send msg)     │     │              │     │ (filtered)  │
+└─────────────────┘     └──────────────┘     └─────────────┘
+        │
+        ▼
+┌─────────────────┐     ┌──────────────┐
+│  User Phone     │────▶│  FastAPI     │
+│  (commands)     │     │  Webhook     │
+└─────────────────┘     └──────────────┘
+```
+
+1. **Scheduled scrape** - APScheduler triggers scraping at your configured time
+2. **Scrape sites** - Each configured site is scraped using the appropriate scraper
+3. **Filter duplicates** - Database checks which listings are new
+4. **Format & notify** - New listings are formatted and sent via WhatsApp
+5. **Commands** - You can also send WhatsApp messages to trigger scrapes on-demand
+
 ## Project Structure
 
 ```
