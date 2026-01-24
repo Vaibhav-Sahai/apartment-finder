@@ -208,3 +208,7 @@ __marimo__/
 
 #ignore claude
 .claude
+
+# Project-specific secrets
+config/sites.yaml
+*.db

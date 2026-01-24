@@ -1,0 +1,45 @@
+# Example sites configuration
+# Copy this to config/sites.yaml and customize for your needs
+#
+# Each site requires:
+#   - name: Friendly name for the site
+#   - url: URL to scrape
+#   - scraper_type: "static" for simple HTML, "playwright" for JS-rendered
+#   - selectors: CSS selectors to extract data
+#
+# Optional:
+#   - wait_for: CSS selector to wait for before scraping (playwright only)
+
+sites:
+  # Example: JS-rendered apartment site (requires Playwright)
+  - name: "Rent @ US"
+    url: "https://liveherepls.com/floorplans/"
+    scraper_type: "playwright"
+    selectors:
+      listing_container: ".floor-plan-card"
+      title: ".fp-title"
+      price: ".fp-price"
+      bedrooms: ".fp-beds"
+      sqft: ".fp-sqft"
+      url: "a"
+    wait_for: ".jd-fp"
+
+  # Example: Static HTML site (simpler, faster)
+  - name: "Example Rentals"
+    url: "https://example.com/apartments"
+    scraper_type: "static"
+    selectors:
+      listing_container: ".listing-card"
+      title: "h2.title"
+      price: ".price"
+      bedrooms: ".beds"
+      bathrooms: ".baths"
+      sqft: ".sqft"
+      availability: ".status"
+      url: "a.details-link"
+
+# Tips for finding selectors:
+# 1. Open the site in Chrome
+# 2. Right-click on an element and select "Inspect"
+# 3. Look for unique class names or IDs
+# 4. Test selectors in DevTools Console: document.querySelectorAll('.your-selector')
