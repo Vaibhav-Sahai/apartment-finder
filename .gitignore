@@ -212,3 +212,8 @@ __marimo__/
 # Project-specific secrets
 config/sites.yaml
 *.db
+
+# ignore my test scripts
+scripts/
+*.html
+*.png

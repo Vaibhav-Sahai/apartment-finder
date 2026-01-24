@@ -53,12 +53,18 @@ class ApartmentFinderServer:
         async with self._create_scraper(site_config) as scraper:
             all_listings = await scraper.scrape()
 
-        # Filter to only new listings
+        # Filter to only new listings and save all
         new_listings = []
         for listing in all_listings:
             if await self.db.is_new_listing(listing.id):
                 new_listings.append(listing)
-                await self.db.save_listing(listing)
+            await self.db.save_listing(listing)
+
+        # Remove stale listings (units no longer available)
+        current_ids = {listing.id for listing in all_listings}
+        removed = await self.db.remove_stale_listings(site_config.name, current_ids)
+        if removed:
+            logger.info(f"Removed {removed} stale listings from {site_config.name}")
 
         logger.info(f"Found {len(new_listings)} new listings from {site_config.name}")
         return new_listings

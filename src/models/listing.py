@@ -1,7 +1,7 @@
 """Listing data model."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, date
 import hashlib
 
 
@@ -17,6 +17,7 @@ class Listing:
     bathrooms: float | None = None
     sqft: int | None = None
     available: bool = True
+    move_in_date: date | None = None
     scraped_at: datetime = field(default_factory=datetime.now)
     id: str = field(default="")
 
@@ -43,6 +44,7 @@ class Listing:
             "bathrooms": self.bathrooms,
             "sqft": self.sqft,
             "available": self.available,
+            "move_in_date": self.move_in_date.isoformat() if self.move_in_date else None,
             "scraped_at": self.scraped_at.isoformat(),
         }
 
@@ -55,6 +57,10 @@ class Listing:
         elif scraped_at is None:
             scraped_at = datetime.now()
 
+        move_in_date = data.get("move_in_date")
+        if isinstance(move_in_date, str):
+            move_in_date = date.fromisoformat(move_in_date)
+
         return cls(
             id=data.get("id", ""),
             site_name=data["site_name"],
@@ -65,5 +71,6 @@ class Listing:
             bathrooms=data.get("bathrooms"),
             sqft=data.get("sqft"),
             available=data.get("available", True),
+            move_in_date=move_in_date,
             scraped_at=scraped_at,
         )

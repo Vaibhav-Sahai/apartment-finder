@@ -10,6 +10,21 @@ import os
 
 
 @dataclass
+class ClickEachConfig:
+    """Configuration for clicking through elements to reveal more content."""
+
+    selector: str
+    wait_after: int = 2000  # milliseconds to wait after each click
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ClickEachConfig":
+        return cls(
+            selector=data["selector"],
+            wait_after=data.get("wait_after", 2000),
+        )
+
+
+@dataclass
 class SiteConfig:
     """Configuration for a single site to scrape."""
 
@@ -18,15 +33,21 @@ class SiteConfig:
     scraper_type: Literal["static", "playwright"]
     selectors: dict[str, str]
     wait_for: str | None = None  # CSS selector to wait for (playwright only)
+    click_each: ClickEachConfig | None = None  # Click through elements to reveal content
 
     @classmethod
     def from_dict(cls, data: dict) -> "SiteConfig":
+        click_each = None
+        if "click_each" in data:
+            click_each = ClickEachConfig.from_dict(data["click_each"])
+
         return cls(
             name=data["name"],
             url=data["url"],
             scraper_type=data.get("scraper_type", "static"),
             selectors=data.get("selectors", {}),
             wait_for=data.get("wait_for"),
+            click_each=click_each,
         )
 
 

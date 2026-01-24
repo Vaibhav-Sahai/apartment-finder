@@ -39,10 +39,18 @@ class Database:
                 bathrooms REAL,
                 sqft INTEGER,
                 available INTEGER DEFAULT 1,
+                move_in_date TEXT,
                 scraped_at TEXT NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Add move_in_date column if it doesn't exist (migration for existing DBs)
+        try:
+            await self._connection.execute(
+                "ALTER TABLE listings ADD COLUMN move_in_date TEXT"
+            )
+        except Exception:
+            pass  # Column already exists
         await self._connection.execute("""
             CREATE INDEX IF NOT EXISTS idx_listings_site ON listings(site_name)
         """)
@@ -65,8 +73,8 @@ class Database:
         await self._connection.execute(
             """
             INSERT OR REPLACE INTO listings
-            (id, site_name, title, url, price, bedrooms, bathrooms, sqft, available, scraped_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, site_name, title, url, price, bedrooms, bathrooms, sqft, available, move_in_date, scraped_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["id"],
@@ -78,6 +86,7 @@ class Database:
                 data["bathrooms"],
                 data["sqft"],
                 1 if data["available"] else 0,
+                data["move_in_date"],
                 data["scraped_at"],
             ),
         )
@@ -112,6 +121,35 @@ class Database:
         cursor = await self._connection.execute("SELECT COUNT(*) FROM listings")
         row = await cursor.fetchone()
         return row[0] if row else 0
+
+    async def remove_stale_listings(self, site_name: str, current_ids: set[str]) -> int:
+        """Remove listings for a site that are no longer found (taken/unavailable).
+
+        Returns the number of listings removed.
+        """
+        if not current_ids:
+            return 0
+
+        # Get all listing IDs for this site
+        cursor = await self._connection.execute(
+            "SELECT id FROM listings WHERE site_name = ?",
+            (site_name,),
+        )
+        rows = await cursor.fetchall()
+        existing_ids = {row[0] for row in rows}
+
+        # Find IDs that exist in DB but not in current scrape
+        stale_ids = existing_ids - current_ids
+
+        if stale_ids:
+            placeholders = ",".join("?" * len(stale_ids))
+            await self._connection.execute(
+                f"DELETE FROM listings WHERE id IN ({placeholders})",
+                tuple(stale_ids),
+            )
+            await self._connection.commit()
+
+        return len(stale_ids)
 
     async def __aenter__(self):
         await self.connect()

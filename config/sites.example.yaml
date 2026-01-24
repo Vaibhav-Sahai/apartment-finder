@@ -9,20 +9,46 @@
 #
 # Optional:
 #   - wait_for: CSS selector to wait for before scraping (playwright only)
+#   - click_each: Click through elements to reveal more content (playwright only)
+#       - selector: CSS selector for elements to click
+#       - wait_after: Milliseconds to wait after each click (default: 2000)
 
 sites:
-  # Example: JS-rendered apartment site (requires Playwright)
+  # Example: Jonah Digital Floor Plans (JS-rendered, requires Playwright)
+  # Many apartment sites use this framework - look for .jd-fp-* classes
   - name: "Rent @ US"
     url: "https://liveherepls.com/floorplans/"
     scraper_type: "playwright"
     selectors:
-      listing_container: ".floor-plan-card"
-      title: ".fp-title"
-      price: ".fp-price"
-      bedrooms: ".fp-beds"
-      sqft: ".fp-sqft"
+      listing_container: ".jd-fp-unit-card"
+      title: ".jd-fp-card-info__title--large"
+      price: "[data-jd-fp-adp='display']"
+      # Note: beds/baths/sqft are combined in one element as "1 bed 1 bath 803 sq. ft."
+      # The scraper parses this combined text automatically
+      details: "p.jd-fp-card-info__text"
+      availability: ".jd-fp-card-info__text--brand"
+      floorplan: ".jd-fp-unit-card__floorplan-title"
       url: "a"
-    wait_for: ".jd-fp"
+    wait_for: ".jd-fp-unit-card"
+
+  # Example: Interactive map-based floor plan viewer
+  # Some sites show different units when you click on different floors
+  # Use click_each to click through all floor elements and aggregate results
+  - name: "Rent @ US"
+    url: "https://liveherecomplexwebsite.com/floorplans/"
+    scraper_type: "playwright"
+    selectors:
+      listing_container: ".jd-fp-unit-card"
+      title: ".jd-fp-card-info__title--large"
+      price: "[data-jd-fp-adp='display']"
+      details: "p.jd-fp-card-info__text"
+      availability: ".jd-fp-card-info__text--brand"
+      url: "a"
+    wait_for: ".jd-fp-unit-card"
+    # Click through each floor to reveal all available units
+    click_each:
+      selector: ".jd-fp-map-embed__floors-item--has-avail"
+      wait_after: 2000
 
   # Example: Static HTML site (simpler, faster)
   - name: "Example Rentals"
