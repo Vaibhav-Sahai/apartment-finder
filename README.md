@@ -133,7 +133,7 @@ uv run python -m src.server
 
 ```
 src/
-├── server.p              # FastAPI + scheduler entry point
+├── server.py              # FastAPI + scheduler entry point
 ├── config/settings.py     # Configuration dataclasses
 ├── scrapers/
 │   ├── base.py            # Abstract scraper interface
