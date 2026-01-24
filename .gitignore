@@ -216,4 +216,3 @@ config/sites.yaml
 # ignore my test scripts
 scripts/
 *.html
-*.png
