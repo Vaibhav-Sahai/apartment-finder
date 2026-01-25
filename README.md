@@ -132,6 +132,7 @@ uv run python -m src.server
 |---------|-------------|
 | `scrape` | Scrape all configured sites |
 | `scrape <site>` | Scrape a specific site |
+| `ls` | List all scraped listings by site |
 | `status` | Bot status and stats |
 | `list` | List configured sites |
 | `help` | Show commands |

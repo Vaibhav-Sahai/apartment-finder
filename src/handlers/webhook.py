@@ -15,6 +15,7 @@ class WebhookHandler:
 
 - *scrape* - Scrape all configured sites
 - *scrape <site>* - Scrape a specific site
+- *ls* - List all scraped listings
 - *status* - Get bot status
 - *list* - List configured sites
 - *help* - Show this message"""
@@ -25,6 +26,7 @@ class WebhookHandler:
         on_scrape_all: Callable[[], Awaitable[str]],
         on_scrape_site: Callable[[str], Awaitable[str]],
         on_status: Callable[[], Awaitable[str]],
+        on_ls: Callable[[], Awaitable[str]],
     ):
         """Initialize the webhook handler.
 
@@ -33,11 +35,13 @@ class WebhookHandler:
             on_scrape_all: Async callback to scrape all sites
             on_scrape_site: Async callback to scrape a specific site
             on_status: Async callback to get status
+            on_ls: Async callback to list all scraped listings
         """
         self.site_names = site_names
         self._on_scrape_all = on_scrape_all
         self._on_scrape_site = on_scrape_site
         self._on_status = on_status
+        self._on_ls = on_ls
 
     async def handle_message(self, message_body: str) -> str:
         """Parse and handle an incoming message.
@@ -59,6 +63,9 @@ class WebhookHandler:
 
         if text == "status":
             return await self._on_status()
+
+        if text == "ls":
+            return await self._on_ls()
 
         if text == "scrape":
             return await self._on_scrape_all()

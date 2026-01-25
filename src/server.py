@@ -16,7 +16,7 @@ from src.scrapers.base import BaseScraper
 from src.scrapers.playwright_scraper import PlaywrightScraper
 from src.scrapers.static_scraper import StaticScraper
 from src.messaging.telegram import TelegramClient
-from src.messaging.formatter import format_listings, format_status
+from src.messaging.formatter import format_listings, format_existing_listings, format_status, format_listings_by_site
 from src.handlers.webhook import WebhookHandler
 
 logging.basicConfig(
@@ -95,7 +95,11 @@ class ApartmentFinderServer:
     async def _handle_scrape_all(self) -> str:
         """Handle 'scrape' command from Telegram."""
         new_listings = await self.scrape_all()
-        return format_listings(new_listings)
+        if new_listings:
+            return format_listings(new_listings)
+        # No new listings, show existing ones
+        existing = await self.db.get_all_listings()
+        return format_existing_listings(existing)
 
     async def _handle_scrape_site(self, site_name: str) -> str:
         """Handle 'scrape <site>' command from Telegram."""
@@ -106,7 +110,11 @@ class ApartmentFinderServer:
 
         try:
             new_listings = await self.scrape_site(site)
-            return format_listings(new_listings, site.name)
+            if new_listings:
+                return format_listings(new_listings, site.name)
+            # No new listings, show existing ones for this site
+            existing = await self.db.get_listings_by_site(site.name)
+            return format_existing_listings(existing, site.name)
         except Exception as e:
             logger.error(f"Error scraping {site_name}: {e}")
             return f"Error scraping {site_name}: {str(e)}"
@@ -120,6 +128,11 @@ class ApartmentFinderServer:
             total_listings=listing_count,
             last_scrape=last_scrape,
         )
+
+    async def _handle_ls(self) -> str:
+        """Handle 'ls' command from Telegram - list all scraped listings."""
+        listings = await self.db.get_all_listings()
+        return format_listings_by_site(listings)
 
     async def startup(self):
         """Initialize server components."""
@@ -138,6 +151,7 @@ class ApartmentFinderServer:
             on_scrape_all=self._handle_scrape_all,
             on_scrape_site=self._handle_scrape_site,
             on_status=self._handle_status,
+            on_ls=self._handle_ls,
         )
 
         # Schedule daily scrape
@@ -178,6 +192,13 @@ app = FastAPI(title="Apartment Finder", lifespan=lifespan)
 @app.post("/webhook")
 async def handle_webhook(request: Request):
     """Handle incoming webhook messages from Telegram."""
+    # Verify secret token if configured
+    if server.settings.telegram_webhook_secret:
+        token = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if token != server.settings.telegram_webhook_secret:
+            logger.warning("Webhook request with invalid secret token")
+            return {"status": "unauthorized"}
+
     payload = await request.json()
 
     # Extract message from payload

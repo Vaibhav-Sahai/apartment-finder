@@ -58,6 +58,7 @@ class Settings:
     # Telegram Bot API
     telegram_bot_token: str
     telegram_chat_id: str
+    telegram_webhook_secret: str
 
     # Schedule
     daily_scrape_time: str  # HH:MM format
@@ -93,6 +94,7 @@ class Settings:
         return cls(
             telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
             telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
+            telegram_webhook_secret=os.getenv("TELEGRAM_WEBHOOK_SECRET", ""),
             daily_scrape_time=os.getenv("DAILY_SCRAPE_TIME", "09:00"),
             db_path=os.getenv("DB_PATH", "listings.db"),
             host=os.getenv("HOST", "0.0.0.0"),

@@ -122,6 +122,14 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row else 0
 
+    async def get_all_listings(self) -> list[Listing]:
+        """Get all listings from the database."""
+        cursor = await self._connection.execute(
+            "SELECT * FROM listings ORDER BY site_name, price ASC"
+        )
+        rows = await cursor.fetchall()
+        return [Listing.from_dict(dict(row)) for row in rows]
+
     async def remove_stale_listings(self, site_name: str, current_ids: set[str]) -> int:
         """Remove listings for a site that are no longer found (taken/unavailable).
 
