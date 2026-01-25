@@ -28,6 +28,9 @@ def format_listing(listing: Listing) -> str:
     if details:
         lines.append(" | ".join(details))
 
+    if listing.move_in_date:
+        lines.append(f"Available: {listing.move_in_date}")
+
     if not listing.available:
         lines.append("_Currently unavailable_")
 
