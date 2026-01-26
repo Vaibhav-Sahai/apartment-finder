@@ -111,31 +111,6 @@ class StaticScraper(BaseScraper):
             available=available,
         )
 
-    def _parse_price(self, text: str) -> float | None:
-        """Extract numeric price from text like '$1,500/mo'."""
-        import re
-        # Remove common non-numeric characters except decimal
-        cleaned = re.sub(r"[^\d.]", "", text)
-        try:
-            return float(cleaned) if cleaned else None
-        except ValueError:
-            return None
-
-    def _parse_int(self, text: str) -> int | None:
-        """Extract integer from text."""
-        import re
-        match = re.search(r"\d+", text)
-        return int(match.group()) if match else None
-
-    def _parse_float(self, text: str) -> float | None:
-        """Extract float from text."""
-        import re
-        match = re.search(r"[\d.]+", text)
-        try:
-            return float(match.group()) if match else None
-        except ValueError:
-            return None
-
     async def close(self):
         """Close the HTTP client."""
         if self._client:

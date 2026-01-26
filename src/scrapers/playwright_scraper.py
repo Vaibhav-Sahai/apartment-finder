@@ -1,5 +1,8 @@
 """Scraper for JavaScript-heavy websites using Playwright."""
 
+import re
+from datetime import date
+
 from playwright.async_api import async_playwright, Browser, Page
 
 from src.scrapers.base import BaseScraper
@@ -168,33 +171,8 @@ class PlaywrightScraper(BaseScraper):
             pass
         return None
 
-    def _parse_price(self, text: str) -> float | None:
-        """Extract numeric price from text."""
-        import re
-        cleaned = re.sub(r"[^\d.]", "", text)
-        try:
-            return float(cleaned) if cleaned else None
-        except ValueError:
-            return None
-
-    def _parse_int(self, text: str) -> int | None:
-        """Extract integer from text."""
-        import re
-        match = re.search(r"\d+", text)
-        return int(match.group()) if match else None
-
-    def _parse_float(self, text: str) -> float | None:
-        """Extract float from text."""
-        import re
-        match = re.search(r"[\d.]+", text)
-        try:
-            return float(match.group()) if match else None
-        except ValueError:
-            return None
-
     def _parse_combined_details(self, text: str) -> tuple[int | None, float | None, int | None]:
         """Parse combined details text like '1 bed 1 bath 803 sq. ft.'"""
-        import re
         text_lower = text.lower()
 
         # Extract bedrooms
@@ -213,9 +191,6 @@ class PlaywrightScraper(BaseScraper):
 
     def _parse_move_in_date(self, text: str):
         """Parse move-in date from availability text like 'Available 01/28/25' or 'Available Now'."""
-        import re
-        from datetime import date
-
         text_lower = text.lower()
 
         # Check for "now" or "today"

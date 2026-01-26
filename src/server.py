@@ -1,6 +1,5 @@
 """Main server - orchestrates scraping, scheduling, and Telegram integration."""
 
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -17,8 +16,6 @@ from src.scrapers.playwright_scraper import PlaywrightScraper
 from src.scrapers.static_scraper import StaticScraper
 from src.messaging.telegram import TelegramClient
 from src.messaging.formatter import (
-    format_listings,
-    format_existing_listings,
     format_status,
     format_listings_by_site,
     format_scrape_summary,

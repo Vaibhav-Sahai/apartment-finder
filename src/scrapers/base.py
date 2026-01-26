@@ -1,5 +1,6 @@
 """Base scraper interface."""
 
+import re
 from abc import ABC, abstractmethod
 
 from src.config.settings import SiteConfig
@@ -31,3 +32,24 @@ class BaseScraper(ABC):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
+
+    def _parse_price(self, text: str) -> float | None:
+        """Extract numeric price from text like '$1,500/mo'."""
+        cleaned = re.sub(r"[^\d.]", "", text)
+        try:
+            return float(cleaned) if cleaned else None
+        except ValueError:
+            return None
+
+    def _parse_int(self, text: str) -> int | None:
+        """Extract integer from text."""
+        match = re.search(r"\d+", text)
+        return int(match.group()) if match else None
+
+    def _parse_float(self, text: str) -> float | None:
+        """Extract float from text."""
+        match = re.search(r"[\d.]+", text)
+        try:
+            return float(match.group()) if match else None
+        except ValueError:
+            return None
