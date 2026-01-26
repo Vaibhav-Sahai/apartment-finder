@@ -16,7 +16,13 @@ from src.scrapers.base import BaseScraper
 from src.scrapers.playwright_scraper import PlaywrightScraper
 from src.scrapers.static_scraper import StaticScraper
 from src.messaging.telegram import TelegramClient
-from src.messaging.formatter import format_listings, format_existing_listings, format_status, format_listings_by_site
+from src.messaging.formatter import (
+    format_listings,
+    format_existing_listings,
+    format_status,
+    format_listings_by_site,
+    format_scrape_summary,
+)
 from src.handlers.webhook import WebhookHandler
 
 logging.basicConfig(
@@ -43,8 +49,8 @@ class ApartmentFinderServer:
             return PlaywrightScraper(site_config)
         return StaticScraper(site_config)
 
-    async def scrape_site(self, site_config: SiteConfig) -> list[Listing]:
-        """Scrape a single site and return new listings."""
+    async def scrape_site(self, site_config: SiteConfig) -> tuple[list[Listing], list[Listing]]:
+        """Scrape a single site and return new and removed listings."""
         logger.info(f"Scraping {site_config.name}...")
 
         async with self._create_scraper(site_config) as scraper:
@@ -59,47 +65,43 @@ class ApartmentFinderServer:
 
         # Remove stale listings (units no longer available)
         current_ids = {listing.id for listing in all_listings}
-        removed = await self.db.remove_stale_listings(site_config.name, current_ids)
-        if removed:
-            logger.info(f"Removed {removed} stale listings from {site_config.name}")
+        removed_listings = await self.db.remove_stale_listings(site_config.name, current_ids)
+        if removed_listings:
+            logger.info(f"Removed {len(removed_listings)} stale listings from {site_config.name}")
 
         logger.info(f"Found {len(new_listings)} new listings from {site_config.name}")
-        return new_listings
+        return new_listings, removed_listings
 
-    async def scrape_all(self) -> list[Listing]:
-        """Scrape all configured sites and return new listings."""
+    async def scrape_all(self) -> tuple[list[Listing], list[Listing]]:
+        """Scrape all configured sites and return new and removed listings."""
         all_new_listings = []
+        all_removed_listings = []
 
         for site in self.settings.sites:
             try:
-                new_listings = await self.scrape_site(site)
+                new_listings, removed_listings = await self.scrape_site(site)
                 all_new_listings.extend(new_listings)
+                all_removed_listings.extend(removed_listings)
             except Exception as e:
                 logger.error(f"Error scraping {site.name}: {e}")
 
         self._last_scrape = datetime.now()
-        return all_new_listings
+        return all_new_listings, all_removed_listings
 
     async def scrape_and_notify(self):
-        """Scrape all sites and send Telegram notification for new listings."""
+        """Scrape all sites and send Telegram notification."""
         logger.info("Starting scheduled scrape...")
-        new_listings = await self.scrape_all()
+        new_listings, removed_listings = await self.scrape_all()
 
-        if new_listings:
-            message = format_listings(new_listings)
-            await self.telegram.send_message(self.settings.telegram_chat_id, message)
-            logger.info(f"Sent notification for {len(new_listings)} new listings")
-        else:
-            logger.info("No new listings found")
+        # Always send a message with scrape summary
+        message = format_scrape_summary(new_listings, removed_listings)
+        await self.telegram.send_message(self.settings.telegram_chat_id, message)
+        logger.info(f"Sent notification: {len(new_listings)} new, {len(removed_listings)} removed")
 
     async def _handle_scrape_all(self) -> str:
         """Handle 'scrape' command from Telegram."""
-        new_listings = await self.scrape_all()
-        if new_listings:
-            return format_listings(new_listings)
-        # No new listings, show existing ones
-        existing = await self.db.get_all_listings()
-        return format_existing_listings(existing)
+        new_listings, removed_listings = await self.scrape_all()
+        return format_scrape_summary(new_listings, removed_listings)
 
     async def _handle_scrape_site(self, site_name: str) -> str:
         """Handle 'scrape <site>' command from Telegram."""
@@ -109,12 +111,8 @@ class ApartmentFinderServer:
             return f"Site '{site_name}' not found.\n\nAvailable sites: {available}"
 
         try:
-            new_listings = await self.scrape_site(site)
-            if new_listings:
-                return format_listings(new_listings, site.name)
-            # No new listings, show existing ones for this site
-            existing = await self.db.get_listings_by_site(site.name)
-            return format_existing_listings(existing, site.name)
+            new_listings, removed_listings = await self.scrape_site(site)
+            return format_scrape_summary(new_listings, removed_listings, site.name)
         except Exception as e:
             logger.error(f"Error scraping {site_name}: {e}")
             return f"Error scraping {site_name}: {str(e)}"
@@ -156,14 +154,15 @@ class ApartmentFinderServer:
 
         # Schedule daily scrape
         hour, minute = map(int, self.settings.daily_scrape_time.split(":"))
-        self.scheduler.add_job(
+        job = self.scheduler.add_job(
             self.scrape_and_notify,
             CronTrigger(hour=hour, minute=minute),
             id="daily_scrape",
             replace_existing=True,
         )
         self.scheduler.start()
-        logger.info(f"Scheduled daily scrape at {self.settings.daily_scrape_time}")
+        next_run = job.next_run_time.strftime("%Y-%m-%d %H:%M:%S %Z") if job.next_run_time else "unknown"
+        logger.info(f"Scheduled daily scrape at {self.settings.daily_scrape_time} (next run: {next_run})")
 
     async def shutdown(self):
         """Clean up server components."""
@@ -225,11 +224,13 @@ async def health_check():
 @app.post("/scrape")
 async def trigger_scrape():
     """Manual scrape trigger endpoint."""
-    new_listings = await server.scrape_all()
+    new_listings, removed_listings = await server.scrape_all()
     return {
         "status": "ok",
         "new_listings": len(new_listings),
+        "removed_listings": len(removed_listings),
         "listings": [l.to_dict() for l in new_listings],
+        "removed": [l.to_dict() for l in removed_listings],
     }
 
 

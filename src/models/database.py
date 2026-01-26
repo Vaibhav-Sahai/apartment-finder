@@ -130,13 +130,13 @@ class Database:
         rows = await cursor.fetchall()
         return [Listing.from_dict(dict(row)) for row in rows]
 
-    async def remove_stale_listings(self, site_name: str, current_ids: set[str]) -> int:
+    async def remove_stale_listings(self, site_name: str, current_ids: set[str]) -> list[Listing]:
         """Remove listings for a site that are no longer found (taken/unavailable).
 
-        Returns the number of listings removed.
+        Returns the listings that were removed.
         """
         if not current_ids:
-            return 0
+            return []
 
         # Get all listing IDs for this site
         cursor = await self._connection.execute(
@@ -149,15 +149,26 @@ class Database:
         # Find IDs that exist in DB but not in current scrape
         stale_ids = existing_ids - current_ids
 
-        if stale_ids:
-            placeholders = ",".join("?" * len(stale_ids))
-            await self._connection.execute(
-                f"DELETE FROM listings WHERE id IN ({placeholders})",
-                tuple(stale_ids),
-            )
-            await self._connection.commit()
+        if not stale_ids:
+            return []
 
-        return len(stale_ids)
+        # Fetch the listings before deleting them
+        placeholders = ",".join("?" * len(stale_ids))
+        cursor = await self._connection.execute(
+            f"SELECT * FROM listings WHERE id IN ({placeholders})",
+            tuple(stale_ids),
+        )
+        rows = await cursor.fetchall()
+        removed_listings = [Listing.from_dict(dict(row)) for row in rows]
+
+        # Now delete them
+        await self._connection.execute(
+            f"DELETE FROM listings WHERE id IN ({placeholders})",
+            tuple(stale_ids),
+        )
+        await self._connection.commit()
+
+        return removed_listings
 
     async def __aenter__(self):
         await self.connect()

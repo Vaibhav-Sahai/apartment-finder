@@ -145,6 +145,54 @@ def format_site_list(site_names: list[str]) -> str:
     return "\n".join(lines)
 
 
+def format_scrape_summary(
+    new_listings: list[Listing],
+    removed_listings: list[Listing],
+    site_name: str | None = None,
+) -> str:
+    """Format a scrape summary with new and removed listings.
+
+    Args:
+        new_listings: List of new listings found
+        removed_listings: List of listings that were delisted
+        site_name: Optional site name for the header
+
+    Returns:
+        Formatted scrape summary message
+    """
+    lines = []
+
+    # Header
+    if site_name:
+        lines.append(f"*Scrape Complete - {site_name}*")
+    else:
+        lines.append("*Scrape Complete*")
+    lines.append("")
+
+    # New listings section
+    if new_listings:
+        lines.append(f"*{len(new_listings)} New Listing(s):*")
+        lines.append("")
+        for i, listing in enumerate(new_listings, 1):
+            lines.append(f"*{i}.* {format_listing(listing)}")
+            lines.append("")
+    else:
+        lines.append("_No new listings found._")
+        lines.append("")
+
+    # Removed/delisted section
+    if removed_listings:
+        lines.append(f"*{len(removed_listings)} Delisted (no longer available):*")
+        lines.append("")
+        for listing in removed_listings:
+            lines.append(f"• ~{listing.title}~")
+            if listing.price:
+                lines.append(f"  Was: ${listing.price:,.0f}/mo")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def format_listings_by_site(listings: list[Listing]) -> str:
     """Format all listings grouped by site.
 
