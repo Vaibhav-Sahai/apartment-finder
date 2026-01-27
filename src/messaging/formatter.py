@@ -132,7 +132,19 @@ def format_scrape_summary(
             lines.append(f"• ~{listing.title}~")
             if listing.price:
                 lines.append(f"  Was: ${listing.price:,.0f}/mo")
-        lines.append("")
+            details = []
+            if listing.bedrooms is not None:
+                details.append(f"{listing.bedrooms} bed")
+            if listing.bathrooms is not None:
+                details.append(f"{listing.bathrooms:.1f} bath")
+            if listing.sqft:
+                details.append(f"{listing.sqft:,} sqft")
+            if details:
+                lines.append(f"  {' | '.join(details)}")
+            if listing.move_in_date:
+                lines.append(f"  Was available: {listing.move_in_date}")
+            lines.append(f"  {listing.url}")
+            lines.append("")
 
     return "\n".join(lines)
 
