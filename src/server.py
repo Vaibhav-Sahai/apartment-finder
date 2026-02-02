@@ -53,10 +53,10 @@ class ApartmentFinderServer:
         async with self._create_scraper(site_config) as scraper:
             all_listings = await scraper.scrape()
 
-        # Filter to only new listings and save all
+        # Filter to only new available listings and save all
         new_listings = []
         for listing in all_listings:
-            if await self.db.is_new_listing(listing.id):
+            if await self.db.is_new_listing(listing.id) and listing.available:
                 new_listings.append(listing)
             await self.db.save_listing(listing)
 
@@ -152,7 +152,7 @@ class ApartmentFinderServer:
         # Schedule daily scrape
         hour, minute = map(int, self.settings.daily_scrape_time.split(":"))
         job = self.scheduler.add_job(
-            self.scrape_and_notify,
+            self.scrape_and_notify, 
             CronTrigger(hour=hour, minute=minute),
             id="daily_scrape",
             replace_existing=True,

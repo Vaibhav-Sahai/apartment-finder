@@ -136,7 +136,11 @@ class PlaywrightScraper(BaseScraper):
         avail_text = await self._get_text(container, selectors.get("availability", ".availability"))
         if avail_text:
             avail_lower = avail_text.lower()
-            available = "unavailable" not in avail_lower and "not available" not in avail_lower
+            available = (
+                "unavailable" not in avail_lower
+                and "not available" not in avail_lower
+                and "fully leased" not in avail_lower
+            )
             move_in_date = self._parse_move_in_date(avail_text)
 
         return Listing(
