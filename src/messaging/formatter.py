@@ -3,6 +3,18 @@
 from src.models.listing import Listing
 
 
+def escape_html(text: str) -> str:
+    """Escape HTML special characters for Telegram.
+
+    Args:
+        text: The text to escape
+
+    Returns:
+        Text with HTML entities escaped
+    """
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def format_listing(listing: Listing) -> str:
     """Format a single listing for Telegram.
 
@@ -12,7 +24,7 @@ def format_listing(listing: Listing) -> str:
     Returns:
         Formatted string for the listing
     """
-    lines = [f"*{listing.title}*"]
+    lines = [f"<b>{escape_html(listing.title)}</b>"]
 
     if listing.price:
         lines.append(f"Price: ${listing.price:,.0f}/mo")
@@ -29,12 +41,12 @@ def format_listing(listing: Listing) -> str:
         lines.append(" | ".join(details))
 
     if listing.move_in_date:
-        lines.append(f"Available: {listing.move_in_date}")
+        lines.append(f"Available: {escape_html(str(listing.move_in_date))}")
 
     if not listing.available:
-        lines.append("_Currently unavailable_")
+        lines.append("<i>Currently unavailable</i>")
 
-    lines.append(listing.url)
+    lines.append(escape_html(listing.url))
 
     return "\n".join(lines)
 
@@ -55,7 +67,7 @@ def format_status(
         Formatted status message
     """
     lines = [
-        "*Apartment Finder Status*",
+        "<b>Apartment Finder Status</b>",
         "",
         f"Sites configured: {total_sites}",
         f"Total listings tracked: {total_listings}",
@@ -79,12 +91,12 @@ def format_site_list(site_names: list[str]) -> str:
     if not site_names:
         return "No sites configured."
 
-    lines = ["*Configured Sites:*", ""]
+    lines = ["<b>Configured Sites:</b>", ""]
     for name in site_names:
-        lines.append(f"- {name}")
+        lines.append(f"- {escape_html(name)}")
 
     lines.append("")
-    lines.append("_Use 'scrape <site>' to scrape a specific site_")
+    lines.append("<i>Use 'scrape &lt;site&gt;' to scrape a specific site</i>")
 
     return "\n".join(lines)
 
@@ -108,28 +120,28 @@ def format_scrape_summary(
 
     # Header
     if site_name:
-        lines.append(f"*Scrape Complete - {site_name}*")
+        lines.append(f"<b>Scrape Complete - {escape_html(site_name)}</b>")
     else:
-        lines.append("*Scrape Complete*")
+        lines.append("<b>Scrape Complete</b>")
     lines.append("")
 
     # New listings section
     if new_listings:
-        lines.append(f"*{len(new_listings)} New Listing(s):*")
+        lines.append(f"<b>{len(new_listings)} New Listing(s):</b>")
         lines.append("")
         for i, listing in enumerate(new_listings, 1):
-            lines.append(f"*{i}.* {format_listing(listing)}")
+            lines.append(f"<b>{i}.</b> {format_listing(listing)}")
             lines.append("")
     else:
-        lines.append("_No new listings found._")
+        lines.append("<i>No new listings found.</i>")
         lines.append("")
 
     # Removed/delisted section
     if removed_listings:
-        lines.append(f"*{len(removed_listings)} Delisted (no longer available):*")
+        lines.append(f"<b>{len(removed_listings)} Delisted (no longer available):</b>")
         lines.append("")
         for listing in removed_listings:
-            lines.append(f"• ~{listing.title}~")
+            lines.append(f"• [DELISTED] {escape_html(listing.title)}")
             if listing.price:
                 lines.append(f"  Was: ${listing.price:,.0f}/mo")
             details = []
@@ -142,8 +154,8 @@ def format_scrape_summary(
             if details:
                 lines.append(f"  {' | '.join(details)}")
             if listing.move_in_date:
-                lines.append(f"  Was available: {listing.move_in_date}")
-            lines.append(f"  {listing.url}")
+                lines.append(f"  Was available: {escape_html(str(listing.move_in_date))}")
+            lines.append(f"  {escape_html(listing.url)}")
             lines.append("")
 
     return "\n".join(lines)
@@ -168,10 +180,10 @@ def format_listings_by_site(listings: list[Listing]) -> str:
             by_site[listing.site_name] = []
         by_site[listing.site_name].append(listing)
 
-    formatted = [f"*{len(listings)} Total Listing(s)*", ""]
+    formatted = [f"<b>{len(listings)} Total Listing(s)</b>", ""]
 
     for site_name, site_listings in by_site.items():
-        formatted.append(f"*From {site_name}:* ({len(site_listings)})")
+        formatted.append(f"<b>From {escape_html(site_name)}:</b> ({len(site_listings)})")
         formatted.append("")
         for i, listing in enumerate(site_listings, 1):
             formatted.append(f"{i}. {format_listing(listing)}")

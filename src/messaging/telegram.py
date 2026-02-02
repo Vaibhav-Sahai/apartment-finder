@@ -5,6 +5,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+TELEGRAM_MAX_LENGTH = 4096
+
 
 class TelegramClient:
     """Client for sending messages via Telegram Bot API."""
@@ -25,6 +27,32 @@ class TelegramClient:
             )
         return self._client
 
+    def _split_message(self, text: str, max_length: int = TELEGRAM_MAX_LENGTH) -> list[str]:
+        """Split long messages at newline boundaries.
+
+        Args:
+            text: The text to split
+            max_length: Maximum length per chunk
+
+        Returns:
+            List of message chunks
+        """
+        if len(text) <= max_length:
+            return [text]
+
+        chunks = []
+        current = ""
+        for line in text.split("\n"):
+            if len(current) + len(line) + 1 > max_length:
+                if current:
+                    chunks.append(current.rstrip())
+                current = line + "\n"
+            else:
+                current += line + "\n"
+        if current:
+            chunks.append(current.rstrip())
+        return chunks
+
     async def send_message(self, chat_id: str, text: str) -> dict:
         """Send a text message to a chat.
 
@@ -35,18 +63,29 @@ class TelegramClient:
         Returns:
             API response dict with message info
         """
+        if not text or not text.strip():
+            logger.warning("Attempted to send empty message")
+            return {"ok": False, "error": "empty message"}
+
         client = await self._get_client()
+        chunks = self._split_message(text)
+        result = {}
 
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-        }
+        for chunk in chunks:
+            payload = {
+                "chat_id": chat_id,
+                "text": chunk,
+                "parse_mode": "HTML",
+            }
 
-        response = await client.post("/sendMessage", json=payload)
-        response.raise_for_status()
-        result = response.json()
-        logger.info(f"Sent message to {chat_id}: {result.get('ok')}")
+            logger.info(f"Sending message to Telegram:\n{chunk}")
+            response = await client.post("/sendMessage", json=payload)
+            if not response.is_success:
+                logger.error(f"Telegram API error: {response.status_code} - {response.text}")
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"Sent message to {chat_id}: {result.get('ok')}")
+
         return result
 
     async def close(self):

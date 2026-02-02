@@ -16,6 +16,7 @@ from src.scrapers.playwright_scraper import PlaywrightScraper
 from src.scrapers.static_scraper import StaticScraper
 from src.messaging.telegram import TelegramClient
 from src.messaging.formatter import (
+    escape_html,
     format_status,
     format_listings_by_site,
     format_scrape_summary,
@@ -104,15 +105,15 @@ class ApartmentFinderServer:
         """Handle 'scrape <site>' command from Telegram."""
         site = self.settings.get_site(site_name)
         if not site:
-            available = ", ".join(s.name for s in self.settings.sites)
-            return f"Site '{site_name}' not found.\n\nAvailable sites: {available}"
+            available = ", ".join(escape_html(s.name) for s in self.settings.sites)
+            return f"Site '{escape_html(site_name)}' not found.\n\nAvailable sites: {available}"
 
         try:
             new_listings, removed_listings = await self.scrape_site(site)
             return format_scrape_summary(new_listings, removed_listings, site.name)
         except Exception as e:
             logger.error(f"Error scraping {site_name}: {e}")
-            return f"Error scraping {site_name}: {str(e)}"
+            return f"Error scraping {escape_html(site_name)}: {escape_html(str(e))}"
 
     async def _handle_status(self) -> str:
         """Handle 'status' command from Telegram."""
@@ -124,9 +125,19 @@ class ApartmentFinderServer:
             last_scrape=last_scrape,
         )
 
-    async def _handle_ls(self) -> str:
-        """Handle 'ls' command from Telegram - list all scraped listings."""
-        listings = await self.db.get_all_listings()
+    async def _handle_ls(self, site_name: str | None = None) -> str:
+        """Handle 'ls' command from Telegram - list scraped listings."""
+        if site_name:
+            site = self.settings.get_site(site_name)  # Case-insensitive lookup
+            if not site:
+                available = ", ".join(escape_html(s.name) for s in self.settings.sites)
+                return f"Site '{escape_html(site_name)}' not found.\n\nAvailable sites: {available}"
+            listings = await self.db.get_listings_by_site(site.name)  # Use exact site name
+        else:
+            listings = await self.db.get_all_listings()
+
+        # Filter to only show available listings with prices
+        listings = [l for l in listings if l.available and l.price]
         return format_listings_by_site(listings)
 
     async def startup(self):

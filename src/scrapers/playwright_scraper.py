@@ -119,15 +119,18 @@ class PlaywrightScraper(BaseScraper):
         details_text = await self._get_text(container, selectors.get("details", ""))
         if details_text:
             bedrooms, bathrooms, sqft = self._parse_combined_details(details_text)
-        else:
-            # Fall back to individual selectors
-            beds_text = await self._get_text(container, selectors.get("bedrooms", ".beds"))
+
+        # Fill in missing values from individual selectors
+        if bedrooms is None:
+            beds_text = await self._get_text(container, selectors.get("bedrooms", ""))
             bedrooms = self._parse_int(beds_text) if beds_text else None
 
-            baths_text = await self._get_text(container, selectors.get("bathrooms", ".baths"))
+        if bathrooms is None:
+            baths_text = await self._get_text(container, selectors.get("bathrooms", ""))
             bathrooms = self._parse_float(baths_text) if baths_text else None
 
-            sqft_text = await self._get_text(container, selectors.get("sqft", ".sqft"))
+        if sqft is None:
+            sqft_text = await self._get_text(container, selectors.get("sqft", ""))
             sqft = self._parse_int(sqft_text) if sqft_text else None
 
         # Check availability and extract move-in date
